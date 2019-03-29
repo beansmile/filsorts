@@ -14,8 +14,8 @@ module Filsorts
         @sorts ||= resource_attributes.keys
       end
 
-      def filters
-        filters = @filters.try(:dup) || {}
+      def filters(filters)
+        filters = (filters && formated_filters(filters)) || {}
 
         if filters.empty?
           default_filters.reject { |f| f =~ /(password)|(token)/ }.each do |f|
@@ -27,6 +27,17 @@ module Filsorts
         end
 
         filters
+      end
+
+      def formated_filters(filters)
+        formated_data = {}
+        filters.each do |column_name, predicate|
+          formated_data[column_name] = {
+            type: type_of(column_name),
+            predicates: predicate ? [predicate] : predicates_of(column_name)
+          }
+        end
+        formated_data
       end
 
       # TODO: default_association_filters custom_ransack_filters
@@ -128,10 +139,11 @@ ActiveRecord::Base.class_eval do
 end
 
 (Gem::Version.new(Grape::VERSION) >= Gem::Version.new('1.2') ? Grape::API::Instance : Grape::API).class_eval  do
-  def self.filsorts_params(model)
+  def self.filsorts_params(model, *args)
+    options = args.extract_options!
     params do
       optional :q, type: Hash do
-        model.filters.each_pair do |k, v|
+        model.filters(options[:filters]).each_pair do |k, v|
           v[:predicates].each do |predicate|
             optional "#{k}_#{predicate}", type: v[:type]
           end

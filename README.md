@@ -22,7 +22,32 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+1. select column to filter
+
+```
+filsorts_params(::User)
+
+# the same as
+# params do
+#  optional :q, type: Hash do
+#    optional :column_name, type: column_type
+#    ... all column
+#  end
+#  optional :sort_column, type: String, values: ["#{column} ASC", "#{column} DESC"]
+#  ... all sort
+# end
+
+# or select column
+filsorts_params(::User, filters: [:name, :phone]) # select name and phone column
+# or select column by specific predicate
+filsorts_params(::User, filters: { name: :eq, phone: :cont }) # select name and phone column by predicate
+```
+
+2. filter collection
+
+```
+filsorts(collection)
+```
 
 ## Development
 
