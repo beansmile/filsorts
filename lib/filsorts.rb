@@ -64,6 +64,9 @@ module Filsorts
             attrs[name] = (method_for_column(name) || name)
           end
         end
+      # if table doesn't exist
+      rescue ActiveRecord::StatementInvalid
+        {}
       end
 
       def reject_col?(c)
