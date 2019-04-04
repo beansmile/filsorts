@@ -21,7 +21,8 @@ module Filsorts
           default_filters.reject { |f| f =~ /(password)|(token)/ }.each do |f|
             filters[f] ||= {
               type: type_of(f),
-              predicates: predicates_of(f)
+              predicates: predicates_of(f),
+              human_attribute_name: human_attribute_name(f)
             }
           end
         end
@@ -148,7 +149,7 @@ end
       optional :q, type: Hash do
         model.filters(options[:filters]).each_pair do |k, v|
           v[:predicates].each do |predicate|
-            optional "#{k}_#{predicate}", type: v[:type]
+            optional "#{k}_#{predicate}", type: v[:type], desc: "#{v[:human_attribute_name]} #{I18n.t("ransack.predicates.#{predicate}")}"
           end
         end
       end
