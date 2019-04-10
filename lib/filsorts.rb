@@ -102,7 +102,7 @@ module Filsorts
       end
 
       def column_for(method)
-        columns_hash[method.to_s] if respond_to? :columns_hash
+        columns_hash[method.to_s] if respond_to? :columns_hash rescue nil # prohibit raise exception when excute rake task
       end
 
       def predicates_of(key)
