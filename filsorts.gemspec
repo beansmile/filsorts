@@ -35,6 +35,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "rails", ">= 5.0"
   spec.add_dependency "grape", ">= 1.0"
+  spec.add_dependency "ransack", ">= 2.0"
 
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 10.0"

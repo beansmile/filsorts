@@ -15,19 +15,7 @@ module Filsorts
       end
 
       def filters(filters)
-        filters = (filters && formated_filters(filters)) || {}
-
-        if filters.empty?
-          default_filters.reject { |f| f =~ /(password)|(token)/ }.each do |f|
-            filters[f] ||= {
-              type: type_of(f),
-              predicates: predicates_of(f),
-              human_attribute_name: human_attribute_name(f)
-            }
-          end
-        end
-
-        filters
+        @filsorts_filters ||= (filters && formated_filters(filters)) || default_filters
       end
 
       def formated_filters(filters)
@@ -43,19 +31,65 @@ module Filsorts
 
       # TODO: default_association_filters custom_ransack_filters
       def default_filters
-        result = []
-        # result.concat default_association_filters
-        result.concat content_columns
-        # result.concat custom_ransack_filters
+        result = {}
+        result.reverse_merge! custom_ransack_filters
+        result.reverse_merge! default_association_filters
+        result.reverse_merge! content_column_filters
         result
+      end
+
+      def default_association_filters
+        if respond_to?(:reflect_on_all_associations)
+          reflect_on_all_associations.reduce({}) do |memo, association|
+            if association.macro == :belongs_to
+              if association.options[:polymorphic]
+                memo[association.foreign_type] = {
+                  type: String,
+                  predicates: [:eq],
+                  human_attribute_name: human_attribute_name(association.name)
+                }
+              end
+
+              memo[association.foreign_key] = {
+                type: Integer,
+                predicates: [:eq],
+                human_attribute_name: human_attribute_name(association.name)
+              }
+            else
+              memo["#{association.name}_id"] = {
+                type: Integer,
+                predicates: [:eq],
+                human_attribute_name: human_attribute_name(association.name)
+              }
+            end
+
+            memo
+          end
+        else
+          {}
+        end
+      end
+
+      def custom_ransack_filters
+        if respond_to?(:_ransackers)
+          _ransackers.keys.reduce({}) do |memo, k|
+            memo[k.to_sym] =
+              {
+                type: type_of(k),
+                predicates: predicates_of(k),
+                human_attribute_name: human_attribute_name(k),
+                values: values_of(k)
+              }
+
+            memo
+          end
+        else
+          {}
+        end
       end
 
       def resource_attributes
         @resource_attributes ||= default_attributes
-      end
-
-      def association_columns
-        @association_columns ||= resource_attributes.select { |key, value| key != value }.values
       end
 
       def default_attributes
@@ -86,8 +120,16 @@ module Filsorts
         c.name.end_with?('_count')
       end
 
-      def content_columns
-        @content_columns ||= resource_attributes.select { |key, value| key == value }.values
+      def content_column_filters
+        resource_attributes.select { |key, value| key == value }.values.reject { |f| f =~ /(password)|(token)/ }.reduce({}) do |memo, f|
+          memo[f] = {
+            type: type_of(f),
+            predicates: predicates_of(f),
+            human_attribute_name: human_attribute_name(f),
+            values: values_of(f)
+          }
+          memo
+        end
       end
 
       def method_for_column(c)
@@ -106,12 +148,20 @@ module Filsorts
       end
 
       def predicates_of(key)
-        case column_for(key)&.type
+        return [:eq] if defined_enums[key.to_s]
+
+        type = column_for(key)&.type
+
+        type = _ransackers[key.to_s].type if _ransackers[key.to_s]
+
+        case type
         when :date, :datetime
           [:eq, :lt, :lteq, :gt, :gteq]
         when :string, :text
           [:cont, :eq, :start, :end]
-        when :integer, :float, :decimal
+        when :integer
+          [:eq, :lt, :lteq, :gt, :gteq]
+        when :float, :decimal
           [:eq, :lt, :lteq, :gt, :gteq]
         when :boolean
           [:eq]
@@ -121,6 +171,8 @@ module Filsorts
       end
 
       def type_of(key)
+        return String if defined_enums[key.to_s]
+
         case column_for(key)&.type
         when :date
           Date
@@ -133,6 +185,10 @@ module Filsorts
         else
           String
         end
+      end
+
+      def values_of(key)
+        defined_enums[key.to_s]&.keys
       end
     end
   end
@@ -149,7 +205,11 @@ end
       optional :q, type: Hash do
         model.filters(options[:filters]).each_pair do |k, v|
           v[:predicates].each do |predicate|
-            optional "#{k}_#{predicate}", type: v[:type], desc: "#{v[:human_attribute_name]} #{I18n.t("ransack.predicates.#{predicate}")}"
+            if model.defined_enums[k.to_s] && !model._ransackers[k.to_s]
+              model.ransacker k, formatter: ->(n) { model.public_send(k.to_s.pluralize)[n] }
+            end
+
+            optional "#{k}_#{predicate}", type: v[:type], desc: "#{v[:human_attribute_name]} #{I18n.t("ransack.predicates.#{predicate}")}", values: v[:values]
           end
         end
       end
