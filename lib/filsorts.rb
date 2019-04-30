@@ -105,7 +105,7 @@ module Filsorts
       end
 
       def reject_col?(c)
-        primary_col?(c) || sti_col?(c) || counter_cache_col?(c)
+        primary_col?(c) || sti_col?(c)
       end
 
       def primary_col?(c)
@@ -114,10 +114,6 @@ module Filsorts
 
       def sti_col?(c)
         c.name == inheritance_column
-      end
-
-      def counter_cache_col?(c)
-        c.name.end_with?('_count')
       end
 
       def content_column_filters
