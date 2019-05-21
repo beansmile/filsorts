@@ -23,7 +23,9 @@ module Filsorts
         filters.each do |column_name, predicate|
           formated_data[column_name] = {
             type: type_of(column_name),
-            predicates: predicate ? [predicate] : predicates_of(column_name)
+            predicates: predicate ? [predicate] : predicates_of(column_name),
+            human_attribute_name: human_attribute_name(column_name),
+            values: values_of(column_name)
           }
         end
         formated_data
