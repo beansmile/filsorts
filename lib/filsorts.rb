@@ -15,7 +15,7 @@ module Filsorts
       end
 
       def filters(filters)
-        @filsorts_filters ||= (filters && formated_filters(filters)) || default_filters
+        (filters && formated_filters(filters)) || default_filters
       end
 
       def formated_filters(filters)
